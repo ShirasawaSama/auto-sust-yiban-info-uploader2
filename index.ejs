@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>奇怪的页面增加了!</title>
+  <style>
+    body {
+      color: rgba(0,0,0,.85);
+      font-size: 14px;
+      font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;
+    }
+  </style>
+  <script>
+    if (typeof fetch !== 'function') alert('请更新您的浏览器!')
+  </script>
+  <script>
+    function submit () {
+      const username = document.getElementById('username').value, password = document.getElementById('password').value
+      if (!username || !password) return alert('你没有填写账号或密码!')
+      ;(async () => {
+        const loc = document.getElementById('location').value || await getLocation()
+        if (!confirm('确认保存? 定位: ' + loc)) return
+        alert(await (await fetch('/update', { method: 'POST', body: JSON.stringify({ username, password, location: loc }) })).text())
+        location.reload()
+      })().catch(e => {
+        console.error(e)
+        alert('获取定位失败或保存失败!')
+      })
+    }
+    function getLocation() {
+      return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject))
+        .then(loc => {
+          const name = '_callback_' + Math.random().toString(36).slice(2)
+          return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+              delete window[name]
+              elm.remove()
+              reject(new Error('Timeout!'))
+            }, 10000)
+            window[name] = it => {
+              clearTimeout(timer)
+              delete window[name]
+              elm.remove()
+              resolve(it)
+            }
+            const elm = document.createElement('script')
+            elm.src = `https://apis.map.qq.com/ws/geocoder/v1/?location=${loc.coords.latitude},${loc.coords.longitude}&key=<%- key %>&output=jsonp&callback=${name}`
+            document.body.appendChild(elm)
+          })
+        })
+        .then(it => {
+          if (it.status !== 0) return alert(it.message)
+          const data = it.result.address_component
+          if (!data.street) alert('无法精准到街道, 请手动填写!')
+          const ar = it.result.address_reference
+          const reference = ((ar && (ar.landmark_l2 || ar.landmark_l1 || ar.famous_area)) || {}).title || ''
+          if (!reference) alert('无法获取附近的地标, 请手动填写!')
+          const num = data.street_number.replace(data.street, '')
+          return document.getElementById('location').value = [data.province, data.city, data.district, data.street, num.endsWith('号') ? num : '1号', '靠近' + reference].join(' ')
+        })
+    }
+    function getLocationNoError() {
+      getLocation().catch(e => {
+        console.log(e)
+        alert('获取定位失败! 可能是没有授权或者没开启定位服务!')
+      })
+    }
+  </script>
+</head>
+
+<body>
+  <h2>当前打卡状态:</h2>
+  <p>最后尝试打卡时间: <%- lastTry %></p>
+  <ul>
+    <% for (const key in status) { %>
+      <li><%- key[0] + '*'.repeat(key.length - 1) %>: <span style="color: #<%- status[key] === '打卡成功!' ? '389e0d' : 'f5222d' %>"><%- status[key] %></span></li>
+    <% } %>
+  </ul>
+  <div>
+    <label>账号:</label> <input placeholder="请填写你的账号" id="username"><br>
+    <label>密码:</label> <input placeholder="请填写你的密码" type="password" id="password"><br>
+    <label>打卡定位:</label> <input placeholder="打卡位置 (可以不填, 自动获取当前位置)" id="location"><button onclick="getLocationNoError()">重新获取定位</button><br>
+    <div>定位的格式为(可以直接看易班打卡里的): [省/直辖市] [市] [区/县] [道路] [门牌]号 靠近[附近地标] (如: 陕西省 西安市 未央区 龙朔路 2号 靠近北城驾校)</div>
+    <button onclick="submit()">保存</button>
+  </div>
+</body>
+
+</html>
