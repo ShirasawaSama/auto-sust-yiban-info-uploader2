@@ -96,7 +96,7 @@ const upload = async (mobile: string) => {
       throw new Error('返回错误!')
     }
     if (data.msg.includes('多次提交')) {
-      status[mobile] = '打卡成功!'
+      status[user.name] = '打卡成功!'
       return
     }
     if (data.msg !== 'SU') throw new Error(data.msg)
